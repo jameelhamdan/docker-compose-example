@@ -1,0 +1,31 @@
+x-hosting:
+  expose: web
+  port: 8000
+
+services:
+  web:
+    image: ghcr.io/jameelhamdan/docker-compose-example:latest
+    ports:
+      - "8000:8000"
+    environment:
+      DB_HOST: db
+      DB_NAME: todos
+      DB_USER: todos
+      DB_PASSWORD: todos
+      REDIS_HOST: redis
+    depends_on:
+      - db
+      - redis
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: todos
+      POSTGRES_USER: todos
+      POSTGRES_PASSWORD: todos
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  redis:
+    image: redis:7-alpine
+
+volumes:
+  pgdata:
