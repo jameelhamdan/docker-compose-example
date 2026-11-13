@@ -13,6 +13,9 @@ services:
       DB_USER: todos
       DB_PASSWORD: todos
       REDIS_HOST: redis
+      DATA_DIR: /data
+    volumes:
+      - webdata:/data
     mem_limit: 256m
     depends_on:
       - db
@@ -34,5 +37,6 @@ services:
       - redisdata:/data
 
 volumes:
+  webdata:
   pgdata:
   redisdata:

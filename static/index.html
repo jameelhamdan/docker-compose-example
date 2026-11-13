@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Todos</title>
+<script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"></script>
+<style>
+  :root { --bg:#f4f5f9; --card:#fff; --text:#1d2030; --muted:#7b8098; --accent:#5b5bd6; --danger:#d64545; --border:#e3e5ee; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14151c; --card:#1e2029; --text:#eceef6; --muted:#8b90a8; --accent:#8080f0; --danger:#f07070; --border:#2c2f3b; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.4 system-ui,-apple-system,Segoe UI,sans-serif; }
+  .wrap { max-width:620px; margin:0 auto; padding:32px 16px 64px; }
+  header { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:20px; }
+  h1 { margin:0; font-size:28px; }
+  .views { color:var(--muted); font-size:14px; }
+  form.add { display:flex; gap:8px; flex-wrap:wrap; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:20px; }
+  input[type=text] { flex:1 1 200px; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text); font:inherit; }
+  input[type=file] { display:none; }
+  button, label.btn { border:0; border-radius:8px; padding:10px 14px; font:inherit; cursor:pointer; background:var(--accent); color:#fff; }
+  button.ghost, label.btn.ghost { background:transparent; color:var(--muted); border:1px solid var(--border); }
+  button.ghost:hover, label.btn.ghost:hover { color:var(--text); }
+  button.del:hover { color:var(--danger); border-color:var(--danger); }
+  ul { list-style:none; margin:0; padding:0; display:grid; gap:10px; }
+  li { display:flex; align-items:center; gap:12px; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:10px 12px; }
+  li .title { flex:1; word-break:break-word; cursor:pointer; }
+  li.done .title { text-decoration:line-through; color:var(--muted); }
+  .check { width:22px; height:22px; border-radius:50%; border:2px solid var(--accent); display:grid; place-items:center; cursor:pointer; color:#fff; font-size:13px; flex:none; }
+  li.done .check { background:var(--accent); }
+  img.thumb { width:48px; height:48px; object-fit:cover; border-radius:8px; flex:none; display:block; }
+  .actions { display:flex; gap:6px; }
+  .actions button, .actions label { padding:6px 10px; font-size:14px; }
+  .error { color:var(--danger); margin:0 0 12px; }
+  .empty { color:var(--muted); text-align:center; padding:24px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+async function api(path, opts) {
+  const res = await fetch(path, opts);
+  if (!res.ok) {
+    let msg = res.statusText;
+    try { msg = (await res.json()).error || msg; } catch {}
+    throw new Error(msg);
+  }
+  return res.status === 204 ? null : res.json();
+}
+
+function Todo({ todo, onChange, onDelete, onError }) {
+  const toggle = () => api(`/api/todos/${todo.id}/toggle`, { method: "POST" }).then(onChange).catch(onError);
+  const upload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const body = new FormData();
+    body.append("image", file);
+    api(`/api/todos/${todo.id}/image`, { method: "POST", body }).then(onChange).catch(onError);
+    e.target.value = "";
+  };
+  const remove = () => api(`/api/todos/${todo.id}`, { method: "DELETE" }).then(() => onDelete(todo.id)).catch(onError);
+  return (
+    <li className={todo.done ? "done" : ""}>
+      <div className="check" onClick={toggle}>{todo.done ? "✓" : ""}</div>
+      {todo.image && <a href={todo.image} target="_blank"><img className="thumb" src={todo.image} alt="" /></a>}
+      <span className="title" onClick={toggle}>{todo.title}</span>
+      <div className="actions">
+        <label className="btn ghost">{todo.image ? "Replace" : "Image"}<input type="file" accept="image/*" onChange={upload} /></label>
+        <button className="ghost del" onClick={remove}>Delete</button>
+      </div>
+    </li>
+  );
+}
+
+function App() {
+  const [todos, setTodos] = useState([]);
+  const [views, setViews] = useState(null);
+  const [title, setTitle] = useState("");
+  const [file, setFile] = useState(null);
+  const [error, setError] = useState("");
+  const fileInput = useRef();
+
+  useEffect(() => {
+    api("/api/todos").then((d) => { setTodos(d.todos); setViews(d.views); }).catch((e) => setError(e.message));
+  }, []);
+
+  const add = (e) => {
+    e.preventDefault();
+    const body = new FormData();
+    body.append("title", title);
+    if (file) body.append("image", file);
+    api("/api/todos", { method: "POST", body })
+      .then((t) => { setTodos([...todos, t]); setTitle(""); setFile(null); fileInput.current.value = ""; setError(""); })
+      .catch((e) => setError(e.message));
+  };
+  const replace = (t) => { setTodos(todos.map((x) => (x.id === t.id ? t : x))); setError(""); };
+
+  return (
+    <div className="wrap">
+      <header><h1>Todos</h1><span className="views">{views !== null && `${views} page views`}</span></header>
+      <form className="add" onSubmit={add}>
+        <input type="text" placeholder="What needs doing?" value={title} onChange={(e) => setTitle(e.target.value)} required />
+        <label className="btn ghost">{file ? file.name.slice(0, 16) : "Add image"}
+          <input ref={fileInput} type="file" accept="image/*" onChange={(e) => setFile(e.target.files[0] || null)} />
+        </label>
+        <button>Add</button>
+      </form>
+      {error && <p className="error">{error}</p>}
+      {todos.length === 0 ? <p className="empty">Nothing to do.</p> : (
+        <ul>
+          {todos.map((t) => (
+            <Todo key={t.id} todo={t} onChange={replace} onError={(e) => setError(e.message)}
+                  onDelete={(id) => setTodos(todos.filter((x) => x.id !== id))} />
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
