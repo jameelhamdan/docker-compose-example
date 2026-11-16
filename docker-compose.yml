@@ -1,39 +1,43 @@
+# Simple hosted setup: the master and its database. All persistent data is under /data in each container
+# (the master's files, versions and updates; PostgreSQL in /data/pgdata), so a backup of /data covers everything.
 x-hosting:
-  expose: web
-  port: 8000
+  expose: master
+  port: 8080
 
 services:
-  web:
-    image: ghcr.io/jameelhamdan/docker-compose-example:latest
+  master:
+    image: jameelh99/fafnirx:latest
     ports:
-      - "8000:8000"
+      - "8080:8080" # web app and web API
+      - "7443:7443" # devices (gRPC)
     environment:
-      DB_HOST: db
-      DB_NAME: todos
-      DB_USER: todos
-      DB_PASSWORD: todos
-      REDIS_HOST: redis
-      DATA_DIR: /data
+      FAFNIRX_DATABASE_URL: postgresql://fafnirx:fafnirx@db/fafnirx
+      # Read at the first start only; change it in the web app afterwards.
+      FAFNIRX_ADMIN_PASSWORD: change-me
+      FAFNIRX_DATA: /data
+      HOME: /tmp # rclone wants a writable home for its cache
     volumes:
-      - webdata:/data
+      - masterdata:/data
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+    restart: unless-stopped
   db:
-    image: postgres:16-alpine
+    image: postgres:17
     environment:
-      POSTGRES_DB: todos
-      POSTGRES_USER: todos
-      POSTGRES_PASSWORD: todos
+      POSTGRES_DB: fafnirx
+      POSTGRES_USER: fafnirx
+      POSTGRES_PASSWORD: fafnirx
       PGDATA: /data/pgdata
     volumes:
       - pgdata:/data
-  redis:
-    image: redis:7-alpine
-    volumes:
-      - redisdata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fafnirx -d fafnirx"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
 
 volumes:
-  webdata:
+  masterdata:
   pgdata:
-  redisdata:
