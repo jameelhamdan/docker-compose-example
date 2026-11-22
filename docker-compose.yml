@@ -26,12 +26,12 @@ services:
       FAFNIRX_PLUGIN_SECRET: ${{master.FAFNIRX_PLUGIN_SECRET}}
       FAFNIRX_MASTER_URL: http://${{master.HOST}}:8080
       FAFNIRX_PLUGIN_URL: http://${{video.HOST}}:8090
-      FAFNIRX_VIDEO_CACHE: /data/cache/video-module # the module's default spot inside the data folder
+      FAFNIRX_VIDEO_CACHE: /cache # inside the container (the image makes it, owned by uid 1000); rebuilt on demand after a redeploy
       FAFNIRX_VIDEO_KEEP_DAYS: "7"
       FAFNIRX_VIDEO_JOBS: "2"
       FAFNIRX_VIDEO_VCODEC: libx264
     volumes:
-      - masterdata:/data # reads the videos in /data/files; writes only its cache in /data/cache/video-module
+      - masterdata:/data:ro # reads the videos in /data/files, never changes them
     depends_on:
       - master
   db:
