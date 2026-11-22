@@ -10,6 +10,8 @@ services:
     environment:
       FAFNIRX_DATABASE_URL: postgresql://fafnirx:${{db.POSTGRES_PASSWORD}}@${{db.HOST}}:${{db.PORT}}/fafnirx
       FAFNIRX_ADMIN_PASSWORD: # secret, read at the first start only
+      FAFNIRX_PLUGIN_SECRET: # secret, 16+ characters (`openssl rand -hex 24`), shared with the add-ons
+      FAFNIRX_PLUGINS: video # warn administrators when the video add-on is missing
       FAFNIRX_DATA: /data
       HOME: /tmp # rclone wants a writable home for its cache
     volumes:
@@ -18,12 +20,17 @@ services:
       - db
   video:
     image: jameelh99/fafnirx-video:latest
+    expose:
+      - "8090"
     environment:
-      FAFNIRX_MASTER_URL: http://master:8080
-      FAFNIRX_DATA: /data
-      HOME: /tmp
+      FAFNIRX_PLUGIN_SECRET: ${{master.FAFNIRX_PLUGIN_SECRET}}
+      FAFNIRX_MASTER_URL: http://${{master.HOST}}:8080
+      FAFNIRX_PLUGIN_URL: http://${{video.HOST}}:8090
+      FAFNIRX_VIDEO_JOBS: "2"
+      FAFNIRX_VIDEO_VCODEC: libx264
     volumes:
-      - videodata:/data
+      - masterdata:/data:ro # reads the videos in /data/files, never changes them
+      - videocache:/cache # HLS segments, removed after 7 days unwatched
     depends_on:
       - master
   db:
@@ -40,5 +47,5 @@ services:
 
 volumes:
   masterdata:
-  videodata:
+  videocache:
   pgdata:
