@@ -1,16 +1,3 @@
-# fafnirx on a platform that runs a compose file for you and routes one HTTP port per app (ghuyum.cloud): the master and its
-# database. Documentation: docs/deployment.md#one-port-for-the-web-app-and-the-devices
-#
-# All persistent data is under /data in each container (the master's files, versions and updates; PostgreSQL in /data/pgdata),
-# so a backup of /data covers everything. The platform allows no ${VAR} in the file: a value left empty is a secret you set in
-# the app's Secrets, and ${{service.VARIABLE}} points at another variable, so the database password is typed once.
-#
-# Set up in the platform:
-#   Secrets      master: FAFNIRX_ADMIN_PASSWORD (read at the first start only)    db: POSTGRES_PASSWORD (`openssl rand -hex 24`)
-#   Environment  master: FAFNIRX_SYNC_URL=https://sync.apps.example.com  (what devices connect to, shown in the web app)
-#   Domains      two hostnames on the app, e.g. files.apps.example.com (web app) and sync.apps.example.com (devices);
-#                both reach the master on 8080, which also answers the device API (gRPC over HTTP/2)
-#   Backups      a policy on master and on db
 x-hosting:
   expose: master
   port: 8080
@@ -29,6 +16,16 @@ services:
       - masterdata:/data
     depends_on:
       - db
+  video:
+    image: jameelh99/fafnirx-video:latest
+    environment:
+      FAFNIRX_MASTER_URL: http://master:8080
+      FAFNIRX_DATA: /data
+      HOME: /tmp
+    volumes:
+      - videodata:/data
+    depends_on:
+      - master
   db:
     image: postgres:17
     expose:
@@ -43,4 +40,5 @@ services:
 
 volumes:
   masterdata:
+  videodata:
   pgdata:
