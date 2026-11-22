@@ -26,6 +26,8 @@ services:
       FAFNIRX_PLUGIN_SECRET: ${{master.FAFNIRX_PLUGIN_SECRET}}
       FAFNIRX_MASTER_URL: http://${{master.HOST}}:8080
       FAFNIRX_PLUGIN_URL: http://${{video.HOST}}:8090
+      FAFNIRX_VIDEO_CACHE: /cache
+      FAFNIRX_VIDEO_KEEP_DAYS: "7"
       FAFNIRX_VIDEO_JOBS: "2"
       FAFNIRX_VIDEO_VCODEC: libx264
     volumes:
